@@ -1,12 +1,10 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
-import openai
+import anthropic
 import os
 import json
-import requests
 from dotenv import load_dotenv
 import io
-import base64
 from datetime import datetime
 import sqlite3
 
@@ -17,7 +15,7 @@ app = Flask(__name__,
             static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'))
 CORS(app)
 
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # ─── Database Setup ────────────────────────────────────────────────────────────
 DB_PATH = "/tmp/listings.db"
@@ -101,50 +99,20 @@ Rules:
 - Keywords must be relevant and high-volume
 - Follow Amazon A9 algorithm best practices"""
 
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are an expert Amazon listing specialist. Always respond with valid JSON only. No markdown, no extra text."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format={"type": "json_object"}
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system="You are an expert Amazon listing specialist. Always respond with valid JSON only. No markdown, no extra text.",
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    result = json.loads(response.choices[0].message.content)
+    result = json.loads(response.content[0].text)
     return jsonify(result)
 
 
 @app.route("/generate-image", methods=["POST"])
 def generate_image():
-    data = request.json
-    product_name = data.get("product_name", "")
-    category     = data.get("category", "")
-    features     = data.get("features", "")
-
-    image_prompt = (
-        f"Professional Amazon product photography of {product_name}, "
-        f"category: {category}, key features: {features}. "
-        "Pure white background, studio lighting, sharp focus, "
-        "high resolution commercial product photo, centered composition, "
-        "no text or watermarks, e-commerce ready image."
-    )
-
-    response = client.images.generate(
-        model="dall-e-3",
-        prompt=image_prompt,
-        size="1024x1024",
-        quality="standard",
-        n=1
-    )
-
-    image_url = response.data[0].url
-    img_response = requests.get(image_url, timeout=30)
-    img_base64 = base64.b64encode(img_response.content).decode("utf-8")
-
-    return jsonify({
-        "image_url": image_url,
-        "image_base64": f"data:image/png;base64,{img_base64}"
-    })
+    return jsonify({"error": "Image generation is not supported with the Claude API."}), 501
 
 
 @app.route("/save", methods=["POST"])
