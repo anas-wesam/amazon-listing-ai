@@ -578,7 +578,7 @@ async function generateImage() {
 
   const container = document.getElementById('imageContainer');
   container.innerHTML = `<div class="spinner" style="width:40px;height:40px;border-width:4px"></div>
-    <p class="text-sm text-gray-500 mt-3">DALL·E 3 is drawing your product...</p>`;
+    <p class="text-sm text-gray-500 mt-3">Generating your product image...</p>`;
 
   try {
     const res = await fetch('/generate-image', {
@@ -587,8 +587,8 @@ async function generateImage() {
       body: JSON.stringify(fd)
     });
     const data = await res.json();
-    currentImage = data.image_base64;
-    container.innerHTML = `<img src="${data.image_base64}" alt="Product image" />`;
+    currentImage = data.image_url;
+    container.innerHTML = `<img src="${data.image_url}" alt="Product image" crossorigin="anonymous" />`;
     document.getElementById('downloadImgBtn').style.display = '';
     showToast('✅ Product image ready!');
   } catch (e) {

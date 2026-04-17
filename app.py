@@ -129,16 +129,11 @@ def generate_image():
         "no text or watermarks, e-commerce ready image."
     )
 
-    encoded_prompt = requests.utils.quote(image_prompt)
-    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
+    from urllib.parse import quote
+    encoded_prompt = quote(image_prompt)
+    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true&seed={hash(product_name) % 99999}"
 
-    img_response = requests.get(image_url, timeout=60)
-    img_base64 = base64.b64encode(img_response.content).decode("utf-8")
-
-    return jsonify({
-        "image_url": image_url,
-        "image_base64": f"data:image/jpeg;base64,{img_base64}"
-    })
+    return jsonify({"image_url": image_url})
 
 
 @app.route("/save", methods=["POST"])
