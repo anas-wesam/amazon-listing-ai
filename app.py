@@ -402,23 +402,31 @@ def save_tokens(access_token, refresh_token, expires_in=3600):
 
 def get_valid_access_token():
     import time
+    # Try DB first
     conn = get_db_conn()
     row = conn.execute("SELECT * FROM amazon_tokens ORDER BY id DESC LIMIT 1").fetchone()
     conn.close()
-    if not row:
-        return None
-    if int(time.time()) < row["expires_at"] - 60:
+    if row and int(time.time()) < row["expires_at"] - 60:
         return row["access_token"]
-    # Refresh
+
+    # Use stored or env refresh token
+    refresh_token = None
+    if row:
+        refresh_token = row["refresh_token"]
+    if not refresh_token:
+        refresh_token = os.getenv("AMAZON_REFRESH_TOKEN", "")
+    if not refresh_token:
+        return None
+
     resp = requests.post("https://api.amazon.com/auth/o2/token", data={
         "grant_type":    "refresh_token",
-        "refresh_token": row["refresh_token"],
+        "refresh_token": refresh_token,
         "client_id":     AMAZON_CLIENT_ID,
         "client_secret": AMAZON_CLIENT_SECRET,
     })
     if resp.status_code == 200:
         data = resp.json()
-        save_tokens(data["access_token"], data.get("refresh_token", row["refresh_token"]), data.get("expires_in", 3600))
+        save_tokens(data["access_token"], data.get("refresh_token", refresh_token), data.get("expires_in", 3600))
         return data["access_token"]
     return None
 
@@ -463,13 +471,15 @@ def amazon_callback():
 @app.route("/amazon/status")
 def amazon_status():
     token = get_valid_access_token()
-    conn = get_db_conn()
-    try:
-        row = conn.execute("SELECT seller_id FROM amazon_seller LIMIT 1").fetchone()
-        seller_id = row["seller_id"] if row else None
-    except:
-        seller_id = None
-    conn.close()
+    seller_id = os.getenv("AMAZON_SELLER_ID", "")
+    if not seller_id:
+        conn = get_db_conn()
+        try:
+            row = conn.execute("SELECT seller_id FROM amazon_seller LIMIT 1").fetchone()
+            seller_id = row["seller_id"] if row else None
+        except:
+            seller_id = None
+        conn.close()
     return jsonify({"connected": token is not None, "seller_id": seller_id})
 
 @app.route("/amazon/publish", methods=["POST"])
@@ -483,14 +493,18 @@ def amazon_publish():
     product_name = data.get("product_name", "")
     sku          = data.get("sku", f"SKU-{datetime.now().strftime('%Y%m%d%H%M%S')}")
 
-    conn = get_db_conn()
-    try:
-        row = conn.execute("SELECT seller_id FROM amazon_seller LIMIT 1").fetchone()
-        seller_id = row["seller_id"]
-    except:
+    seller_id = os.getenv("AMAZON_SELLER_ID", "")
+    if not seller_id:
+        conn = get_db_conn()
+        try:
+            row = conn.execute("SELECT seller_id FROM amazon_seller LIMIT 1").fetchone()
+            seller_id = row["seller_id"] if row else None
+        except:
+            seller_id = None
+        finally:
+            conn.close()
+    if not seller_id:
         return jsonify({"error": "Seller ID not found"}), 400
-    finally:
-        conn.close()
 
     bullets = content.get("bullet_points", [])
     payload = {
