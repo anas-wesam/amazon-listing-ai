@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Amazon AI Listing Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    :root {
+      --amazon-orange: #FF9900;
+      --amazon-dark:   #131921;
+      --amazon-blue:   #146EB4;
+    }
+    * { box-sizing: border-box; }
+    body { background: #0f1117; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+
+    .card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+    }
+    .amazon-btn {
+      background: linear-gradient(135deg, #FF9900, #e68900);
+      color: #131921;
+      font-weight: 700;
+      border-radius: 8px;
+      transition: all .2s;
+    }
+    .amazon-btn:hover { background: linear-gradient(135deg, #ffb347, #FF9900); transform: translateY(-1px); box-shadow: 0 4px 15px rgba(255,153,0,.4); }
+    .amazon-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .secondary-btn {
+      background: #2d3748;
+      color: #e2e8f0;
+      border-radius: 8px;
+      transition: all .2s;
+    }
+    .secondary-btn:hover { background: #4a5568; }
+
+    .input-field {
+      background: #0f1117;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 10px 14px;
+      width: 100%;
+      transition: border-color .2s;
+    }
+    .input-field:focus { outline: none; border-color: #FF9900; box-shadow: 0 0 0 2px rgba(255,153,0,.15); }
+
+    .output-section {
+      background: #0f1117;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 14px;
+      position: relative;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: #2d3748;
+      border: none;
+      border-radius: 6px;
+      color: #a0aec0;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all .2s;
+    }
+    .copy-btn:hover { background: #4a5568; color: #fff; }
+    .copy-btn.copied { background: #276749; color: #68d391; }
+
+    .char-bar { height: 4px; border-radius: 2px; background: #2d3748; margin-top: 6px; }
+    .char-bar-fill { height: 100%; border-radius: 2px; background: #FF9900; transition: width .3s; }
+
+    .spinner {
+      border: 3px solid #2d3748;
+      border-top-color: #FF9900;
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      animation: spin .8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .tab-btn { padding: 8px 20px; border-radius: 8px; font-weight: 600; transition: all .2s; cursor: pointer; }
+    .tab-btn.active { background: #FF9900; color: #131921; }
+    .tab-btn:not(.active) { color: #a0aec0; }
+    .tab-btn:not(.active):hover { color: #fff; }
+
+    .history-item {
+      background: #0f1117;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .history-item:hover { border-color: #FF9900; background: #1a1a2e; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-orange { background: rgba(255,153,0,.15); color: #FF9900; }
+    .badge-blue   { background: rgba(20,110,180,.2);  color: #63b3ed; }
+    .badge-green  { background: rgba(39,103,73,.2);   color: #68d391; }
+
+    .image-container {
+      width: 100%; aspect-ratio: 1;
+      background: #0f1117;
+      border: 2px dashed #2d3748;
+      border-radius: 12px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .image-container img { width: 100%; height: 100%; object-fit: contain; }
+
+    .floating-toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #276749;
+      color: #68d391;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all .3s;
+      pointer-events: none;
+    }
+    .floating-toast.show { transform: translateY(0); opacity: 1; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f1117; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Toast -->
+<div class="floating-toast" id="toast"><i class="fas fa-check mr-2"></i><span id="toastMsg">Copied!</span></div>
+
+<!-- Header -->
+<header style="background:#131921; border-bottom:2px solid #FF9900;">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div style="background:#FF9900; border-radius:8px; padding:6px 12px;">
+        <span style="font-size:20px; font-weight:900; color:#131921;">amazon</span>
+      </div>
+      <div>
+        <div class="font-bold text-white text-lg">AI Listing Generator</div>
+        <div class="text-xs" style="color:#FF9900;">Powered by GPT-4o + DALL·E 3</div>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="tab-btn active" id="tabGenerate" onclick="switchTab('generate')">
+        <i class="fas fa-magic mr-1"></i> Generate
+      </button>
+      <button class="tab-btn" id="tabHistory" onclick="switchTab('history')">
+        <i class="fas fa-history mr-1"></i> History
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- GENERATE TAB -->
+<div id="generateTab" class="max-w-7xl mx-auto px-6 py-8">
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+    <!-- LEFT: Input Form -->
+    <div class="lg:col-span-2 space-y-4">
+      <div class="card p-6">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+          <i class="fas fa-box" style="color:#FF9900"></i> Product Details
+        </h2>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Product Name *</label>
+            <input class="input-field" id="productName" placeholder="e.g. Wireless Bluetooth Headphones" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Category *</label>
+            <select class="input-field" id="category">
+              <option value="">Select category...</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Clothing & Fashion">Clothing & Fashion</option>
+              <option value="Home & Kitchen">Home & Kitchen</option>
+              <option value="Beauty & Personal Care">Beauty & Personal Care</option>
+              <option value="Sports & Outdoors">Sports & Outdoors</option>
+              <option value="Toys & Games">Toys & Games</option>
+              <option value="Books">Books</option>
+              <option value="Health & Household">Health & Household</option>
+              <option value="Automotive">Automotive</option>
+              <option value="Tools & Home Improvement">Tools & Home Improvement</option>
+              <option value="Office Products">Office Products</option>
+              <option value="Pet Supplies">Pet Supplies</option>
+              <option value="Baby">Baby</option>
+              <option value="Food & Grocery">Food & Grocery</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Key Features *</label>
+            <textarea class="input-field" id="features" rows="4"
+              placeholder="Describe main features, materials, specs, what makes it unique..."></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Target Audience</label>
+            <input class="input-field" id="audience" placeholder="e.g. Gamers, Athletes, Students..." />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Price Range</label>
+            <input class="input-field" id="priceRange" placeholder="e.g. $29.99 - $49.99" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-400 mb-1">Output Language</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button class="lang-btn active-lang py-2 rounded-lg text-sm font-semibold" data-lang="en" onclick="setLang('en')">🇺🇸 English</button>
+              <button class="lang-btn py-2 rounded-lg text-sm font-semibold" data-lang="ar" onclick="setLang('ar')">🇸🇦 Arabic</button>
+              <button class="lang-btn py-2 rounded-lg text-sm font-semibold" data-lang="both" onclick="setLang('both')">🌐 Both</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 space-y-3">
+          <button class="amazon-btn w-full py-3 text-base" id="generateBtn" onclick="generateAll()">
+            <i class="fas fa-magic mr-2"></i> Generate Listing
+          </button>
+          <button class="secondary-btn w-full py-3 text-sm" id="imageBtn" onclick="generateImage()">
+            <i class="fas fa-image mr-2"></i> Generate AI Product Image
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Image -->
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold flex items-center gap-2"><i class="fas fa-image" style="color:#FF9900"></i> AI Product Image</h3>
+          <button class="copy-btn" id="downloadImgBtn" onclick="downloadImage()" style="display:none; position:static">
+            <i class="fas fa-download mr-1"></i> Save
+          </button>
+        </div>
+        <div class="image-container" id="imageContainer">
+          <i class="fas fa-camera text-4xl mb-2" style="color:#2d3748"></i>
+          <p class="text-sm text-gray-500">Click "Generate AI Image" to create a product photo</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Output -->
+    <div class="lg:col-span-3 space-y-4">
+
+      <!-- Title -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold flex items-center gap-2">
+            <i class="fas fa-heading" style="color:#FF9900"></i> Product Title
+            <span class="badge badge-orange" id="titleCount">0 / 200</span>
+          </h3>
+          <button class="secondary-btn px-3 py-1 text-xs" onclick="regenerateField('title')">
+            <i class="fas fa-redo mr-1"></i> Regen
+          </button>
+        </div>
+        <div class="output-section">
+          <div id="titleOutput" class="text-gray-300 min-h-[40px] pr-16">
+            <span class="text-gray-600 italic">Generated title will appear here...</span>
+          </div>
+          <button class="copy-btn" onclick="copyText('titleOutput', this)"><i class="fas fa-copy mr-1"></i> Copy</button>
+        </div>
+        <div class="char-bar mt-2"><div class="char-bar-fill" id="titleBar" style="width:0%"></div></div>
+      </div>
+
+      <!-- Bullet Points -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold flex items-center gap-2">
+            <i class="fas fa-list" style="color:#FF9900"></i> Bullet Points
+          </h3>
+          <button class="secondary-btn px-3 py-1 text-xs" onclick="regenerateField('bullet_points')">
+            <i class="fas fa-redo mr-1"></i> Regen
+          </button>
+        </div>
+        <div class="output-section">
+          <div id="bulletsOutput" class="space-y-2 min-h-[80px] pr-16">
+            <span class="text-gray-600 italic">Bullet points will appear here...</span>
+          </div>
+          <button class="copy-btn" onclick="copyBullets(this)"><i class="fas fa-copy mr-1"></i> Copy</button>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold flex items-center gap-2">
+            <i class="fas fa-align-left" style="color:#FF9900"></i> Product Description
+          </h3>
+          <button class="secondary-btn px-3 py-1 text-xs" onclick="regenerateField('description')">
+            <i class="fas fa-redo mr-1"></i> Regen
+          </button>
+        </div>
+        <div class="output-section">
+          <div id="descOutput" class="text-gray-300 min-h-[80px] leading-relaxed pr-16">
+            <span class="text-gray-600 italic">Description will appear here...</span>
+          </div>
+          <button class="copy-btn" onclick="copyText('descOutput', this)"><i class="fas fa-copy mr-1"></i> Copy</button>
+        </div>
+      </div>
+
+      <!-- Keywords -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold flex items-center gap-2">
+            <i class="fas fa-tags" style="color:#FF9900"></i> Keywords
+          </h3>
+          <button class="secondary-btn px-3 py-1 text-xs" onclick="regenerateField('keywords')">
+            <i class="fas fa-redo mr-1"></i> Regen
+          </button>
+        </div>
+        <div class="output-section">
+          <div id="keywordsOutput" class="text-gray-300 min-h-[40px] pr-16">
+            <span class="text-gray-600 italic">Keywords will appear here...</span>
+          </div>
+          <button class="copy-btn" onclick="copyText('keywordsOutput', this)"><i class="fas fa-copy mr-1"></i> Copy</button>
+        </div>
+      </div>
+
+      <!-- Search Terms -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold flex items-center gap-2">
+            <i class="fas fa-search" style="color:#FF9900"></i> Backend Search Terms
+          </h3>
+        </div>
+        <div class="output-section">
+          <div id="searchTermsOutput" class="text-gray-300 min-h-[40px] pr-16">
+            <span class="text-gray-600 italic">Search terms will appear here...</span>
+          </div>
+          <button class="copy-btn" onclick="copyText('searchTermsOutput', this)"><i class="fas fa-copy mr-1"></i> Copy</button>
+        </div>
+      </div>
+
+      <!-- Export Actions -->
+      <div class="card p-4" id="exportCard" style="display:none">
+        <h3 class="font-semibold mb-3 flex items-center gap-2">
+          <i class="fas fa-download" style="color:#FF9900"></i> Export & Save
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <button class="secondary-btn py-2 text-sm" onclick="exportListing('txt')">
+            <i class="fas fa-file-alt mr-1"></i> TXT
+          </button>
+          <button class="secondary-btn py-2 text-sm" onclick="exportListing('json')">
+            <i class="fas fa-file-code mr-1"></i> JSON
+          </button>
+          <button class="secondary-btn py-2 text-sm" onclick="exportListing('csv')">
+            <i class="fas fa-file-csv mr-1"></i> CSV
+          </button>
+          <button class="amazon-btn py-2 text-sm" onclick="saveListing()">
+            <i class="fas fa-save mr-1"></i> Save
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY TAB -->
+<div id="historyTab" class="max-w-7xl mx-auto px-6 py-8" style="display:none">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-lg flex items-center gap-2">
+            <i class="fas fa-history" style="color:#FF9900"></i> Saved Listings
+          </h2>
+          <button class="secondary-btn px-3 py-1 text-xs" onclick="loadHistory()">
+            <i class="fas fa-sync mr-1"></i> Refresh
+          </button>
+        </div>
+        <div id="historyList" class="space-y-2 max-h-[70vh] overflow-y-auto">
+          <p class="text-gray-500 text-sm text-center py-8">No saved listings yet</p>
+        </div>
+      </div>
+    </div>
+    <div class="lg:col-span-2">
+      <div class="card p-5" id="historyDetail" style="display:none">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold" id="histDetailName">—</h3>
+          <div class="flex gap-2">
+            <button class="secondary-btn px-3 py-1 text-xs" onclick="exportFromHistory('txt')">
+              <i class="fas fa-file-alt mr-1"></i> TXT
+            </button>
+            <button class="secondary-btn px-3 py-1 text-xs" onclick="exportFromHistory('json')">
+              <i class="fas fa-file-code mr-1"></i> JSON
+            </button>
+            <button class="secondary-btn px-3 py-1 text-xs" onclick="exportFromHistory('csv')">
+              <i class="fas fa-file-csv mr-1"></i> CSV
+            </button>
+            <button class="px-3 py-1 text-xs rounded-lg bg-red-900 text-red-300 hover:bg-red-800"
+              onclick="deleteHistoryItem()">
+              <i class="fas fa-trash mr-1"></i> Delete
+            </button>
+          </div>
+        </div>
+        <div class="space-y-4" id="histDetailContent"></div>
+      </div>
+      <div class="card p-8 text-center text-gray-500" id="historyEmpty">
+        <i class="fas fa-mouse-pointer text-4xl mb-3 block" style="color:#2d3748"></i>
+        Select a listing from the left to view details
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .lang-btn { background:#0f1117; border:1px solid #2d3748; color:#a0aec0; transition:all .2s; }
+  .lang-btn:hover { border-color:#FF9900; }
+  .lang-btn.active-lang { background:rgba(255,153,0,.15); border-color:#FF9900; color:#FF9900; }
+</style>
+
+<script>
+let currentLang = 'en';
+let currentData = null;
+let currentImage = null;
+let currentHistoryId = null;
+
+function switchTab(tab) {
+  document.getElementById('generateTab').style.display = tab === 'generate' ? '' : 'none';
+  document.getElementById('historyTab').style.display  = tab === 'history'  ? '' : 'none';
+  document.getElementById('tabGenerate').className = 'tab-btn' + (tab === 'generate' ? ' active' : '');
+  document.getElementById('tabHistory').className  = 'tab-btn' + (tab === 'history'  ? ' active' : '');
+  if (tab === 'history') loadHistory();
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active-lang', b.dataset.lang === lang);
+  });
+}
+
+function showToast(msg = 'Copied!', color = '#276749', textColor = '#68d391') {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.style.background = color;
+  t.style.color = textColor;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function getFormData() {
+  return {
+    product_name: document.getElementById('productName').value.trim(),
+    category:     document.getElementById('category').value,
+    features:     document.getElementById('features').value.trim(),
+    audience:     document.getElementById('audience').value.trim(),
+    price_range:  document.getElementById('priceRange').value.trim(),
+    language:     currentLang
+  };
+}
+
+function setLoading(btnId, loading, icon = 'fa-magic', text = 'Generate Listing') {
+  const btn = document.getElementById(btnId);
+  if (loading) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner mr-2"></span> Generating...`;
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fas ${icon} mr-2"></i> ${text}`;
+  }
+}
+
+function renderOutput(data) {
+  currentData = data;
+
+  // Title
+  const title = data.title || '';
+  document.getElementById('titleOutput').innerHTML = `<span class="font-medium">${escHtml(title)}</span>`;
+  const pct = Math.min(100, Math.round((title.length / 200) * 100));
+  document.getElementById('titleBar').style.width = pct + '%';
+  document.getElementById('titleBar').style.background = pct > 90 ? '#e53e3e' : '#FF9900';
+  document.getElementById('titleCount').textContent = title.length + ' / 200';
+
+  // Bullets
+  const bp = data.bullet_points || [];
+  document.getElementById('bulletsOutput').innerHTML = bp.map(b =>
+    `<div class="flex items-start gap-2">
+       <i class="fas fa-circle text-xs mt-1.5 flex-shrink-0" style="color:#FF9900;font-size:6px"></i>
+       <span>${escHtml(b)}</span>
+     </div>`
+  ).join('');
+
+  // Description
+  document.getElementById('descOutput').innerHTML = escHtml(data.description || '').replace(/\n/g, '<br>');
+
+  // Keywords — render as tags
+  const kw = (data.keywords || '').split(',').map(k => k.trim()).filter(Boolean);
+  document.getElementById('keywordsOutput').innerHTML = kw.map(k =>
+    `<span class="badge badge-blue mr-1 mb-1">${escHtml(k)}</span>`
+  ).join('');
+
+  // Search Terms
+  document.getElementById('searchTermsOutput').innerHTML = `<span class="text-gray-300">${escHtml(data.search_terms || '')}</span>`;
+
+  document.getElementById('exportCard').style.display = '';
+}
+
+async function generateAll() {
+  const fd = getFormData();
+  if (!fd.product_name || !fd.category || !fd.features) {
+    showToast('Please fill required fields!', '#742a2a', '#fc8181');
+    return;
+  }
+
+  setLoading('generateBtn', true);
+  try {
+    const res = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fd)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderOutput(data);
+    showToast('✅ Listing generated!');
+  } catch (e) {
+    showToast('Error: ' + e.message, '#742a2a', '#fc8181');
+  } finally {
+    setLoading('generateBtn', false, 'fa-magic', 'Generate Listing');
+  }
+}
+
+async function regenerateField(field) {
+  const fd = getFormData();
+  if (!fd.product_name || !fd.category || !fd.features) {
+    showToast('Please fill required fields first!', '#742a2a', '#fc8181');
+    return;
+  }
+  try {
+    const res = await fetch('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fd)
+    });
+    const data = await res.json();
+    if (currentData) {
+      currentData[field] = data[field];
+      renderOutput(currentData);
+    }
+    showToast(`✅ ${field.replace('_', ' ')} regenerated!`);
+  } catch (e) {
+    showToast('Error: ' + e.message, '#742a2a', '#fc8181');
+  }
+}
+
+async function generateImage() {
+  const fd = getFormData();
+  if (!fd.product_name) {
+    showToast('Please enter a product name first!', '#742a2a', '#fc8181');
+    return;
+  }
+  const btn = document.getElementById('imageBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner mr-2"></span> Creating image...';
+
+  const container = document.getElementById('imageContainer');
+  container.innerHTML = `<div class="spinner" style="width:40px;height:40px;border-width:4px"></div>
+    <p class="text-sm text-gray-500 mt-3">DALL·E 3 is drawing your product...</p>`;
+
+  try {
+    const res = await fetch('/generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fd)
+    });
+    const data = await res.json();
+    currentImage = data.image_base64;
+    container.innerHTML = `<img src="${data.image_base64}" alt="Product image" />`;
+    document.getElementById('downloadImgBtn').style.display = '';
+    showToast('✅ Product image ready!');
+  } catch (e) {
+    container.innerHTML = `<i class="fas fa-exclamation-triangle text-3xl mb-2" style="color:#e53e3e"></i>
+      <p class="text-sm text-red-400">Failed to generate image</p>`;
+    showToast('Error: ' + e.message, '#742a2a', '#fc8181');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-image mr-2"></i> Generate AI Product Image';
+  }
+}
+
+function downloadImage() {
+  if (!currentImage) return;
+  const a = document.createElement('a');
+  a.href = currentImage;
+  a.download = `product_image_${Date.now()}.png`;
+  a.click();
+}
+
+async function exportListing(fmt) {
+  if (!currentData) { showToast('Generate a listing first!', '#742a2a', '#fc8181'); return; }
+  const fd = getFormData();
+  const res = await fetch('/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: currentData, product_name: fd.product_name, format: fmt })
+  });
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = res.headers.get('content-disposition')?.split('filename=')[1] || `listing.${fmt}`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✅ Exported as ${fmt.toUpperCase()}!`);
+}
+
+async function saveListing() {
+  if (!currentData) { showToast('Generate a listing first!', '#742a2a', '#fc8181'); return; }
+  const fd = getFormData();
+  await fetch('/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: currentData,
+      product_name: fd.product_name,
+      category: fd.category,
+      language: currentLang,
+      image_base64: currentImage || ''
+    })
+  });
+  showToast('✅ Listing saved to history!');
+}
+
+async function loadHistory() {
+  const res = await fetch('/history');
+  const items = await res.json();
+  const list = document.getElementById('historyList');
+  if (!items.length) {
+    list.innerHTML = '<p class="text-gray-500 text-sm text-center py-8">No saved listings yet</p>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <div class="history-item" onclick="loadHistoryItem(${item.id})">
+      <div class="flex items-start justify-between gap-2">
+        <div class="font-semibold text-sm truncate">${escHtml(item.product_name)}</div>
+        <span class="badge badge-orange flex-shrink-0">${escHtml(item.language.toUpperCase())}</span>
+      </div>
+      <div class="text-xs text-gray-500 mt-1">${escHtml(item.category)} · ${escHtml(item.created_at)}</div>
+      <div class="text-xs text-gray-400 mt-1 truncate">${escHtml(item.title)}</div>
+    </div>
+  `).join('');
+}
+
+async function loadHistoryItem(id) {
+  currentHistoryId = id;
+  const res = await fetch(`/history/${id}`);
+  const item = await res.json();
+
+  document.getElementById('historyEmpty').style.display = 'none';
+  document.getElementById('historyDetail').style.display = '';
+  document.getElementById('histDetailName').textContent = item.product_name + ' — ' + item.category;
+
+  const bp = (item.bullet_points || []).map(b =>
+    `<div class="flex items-start gap-2 text-sm">
+       <i class="fas fa-circle flex-shrink-0 mt-1.5" style="color:#FF9900;font-size:6px"></i>
+       <span>${escHtml(b)}</span>
+     </div>`
+  ).join('');
+
+  const kw = (item.keywords || '').split(',').map(k =>
+    `<span class="badge badge-blue mr-1 mb-1">${escHtml(k.trim())}</span>`
+  ).join('');
+
+  document.getElementById('histDetailContent').innerHTML = `
+    <div>
+      <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Title</div>
+      <div class="output-section text-sm">${escHtml(item.title)}</div>
+    </div>
+    <div>
+      <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Bullet Points</div>
+      <div class="output-section space-y-2">${bp}</div>
+    </div>
+    <div>
+      <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Description</div>
+      <div class="output-section text-sm leading-relaxed">${escHtml(item.description).replace(/\n/g,'<br>')}</div>
+    </div>
+    <div>
+      <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Keywords</div>
+      <div class="output-section">${kw}</div>
+    </div>
+    ${item.image_base64 ? `
+    <div>
+      <div class="text-xs font-semibold text-gray-400 uppercase mb-1">Product Image</div>
+      <img src="${item.image_base64}" class="rounded-lg w-48" />
+    </div>` : ''}
+  `;
+
+  // store for export
+  window._histItem = item;
+}
+
+async function exportFromHistory(fmt) {
+  if (!window._histItem) return;
+  const item = window._histItem;
+  const res = await fetch('/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: {
+        title: item.title, description: item.description,
+        bullet_points: item.bullet_points, keywords: item.keywords, search_terms: item.search_terms
+      },
+      product_name: item.product_name,
+      format: fmt
+    })
+  });
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `listing_${item.product_name}.${fmt}`; a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✅ Exported as ${fmt.toUpperCase()}!`);
+}
+
+async function deleteHistoryItem() {
+  if (!currentHistoryId) return;
+  if (!confirm('Delete this listing?')) return;
+  await fetch(`/history/${currentHistoryId}`, { method: 'DELETE' });
+  document.getElementById('historyDetail').style.display = 'none';
+  document.getElementById('historyEmpty').style.display = '';
+  currentHistoryId = null;
+  loadHistory();
+  showToast('Deleted.', '#742a2a', '#fc8181');
+}
+
+function copyText(id, btn) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Done';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
+    }, 2000);
+  });
+}
+
+function copyBullets(btn) {
+  const bp = currentData?.bullet_points || [];
+  navigator.clipboard.writeText(bp.map(b => '• ' + b).join('\n')).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Done';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
+    }, 2000);
+  });
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+</script>
+</body>
+</html>
