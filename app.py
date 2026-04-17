@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
-import anthropic
+from groq import Groq
 import os
 import json
 from dotenv import load_dotenv
@@ -15,7 +15,7 @@ app = Flask(__name__,
             static_folder=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static'))
 CORS(app)
 
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ─── Database Setup ────────────────────────────────────────────────────────────
 DB_PATH = "/tmp/listings.db"
@@ -99,14 +99,16 @@ Rules:
 - Keywords must be relevant and high-volume
 - Follow Amazon A9 algorithm best practices"""
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system="You are an expert Amazon listing specialist. Always respond with valid JSON only. No markdown, no extra text.",
-        messages=[{"role": "user", "content": prompt}]
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": "You are an expert Amazon listing specialist. Always respond with valid JSON only. No markdown, no extra text."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"}
     )
 
-    result = json.loads(response.content[0].text)
+    result = json.loads(response.choices[0].message.content)
     return jsonify(result)
 
 
