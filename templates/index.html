@@ -163,8 +163,7 @@
       <!-- Amazon Connect Status -->
       <div id="amazonStatus" class="flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold" style="background:#1a1f2e; border:1px solid #2d3748">
         <span id="amazonDot" class="w-2 h-2 rounded-full bg-gray-600 inline-block"></span>
-        <span id="amazonStatusText">Amazon: غير مرتبط</span>
-        <button id="amazonConnectBtn" onclick="connectAmazon()" class="ml-1 px-2 py-0.5 rounded text-xs" style="background:#FF9900;color:#131921;font-weight:700">ربط</button>
+        <span id="amazonStatusText">Amazon: جاري التحقق...</span>
       </div>
       <button class="tab-btn active" id="tabGenerate" onclick="switchTab('generate')">
         <i class="fas fa-magic mr-1"></i> Generate
@@ -1290,33 +1289,16 @@ async function checkAmazonStatus() {
   try {
     const res = await fetch('/amazon/status');
     const data = await res.json();
-    const dot  = document.getElementById('amazonDot');
-    const txt  = document.getElementById('amazonStatusText');
-    const btn  = document.getElementById('amazonConnectBtn');
+    const dot = document.getElementById('amazonDot');
+    const txt = document.getElementById('amazonStatusText');
     if (data.connected) {
-      dot.style.background  = '#68d391';
-      txt.textContent       = `Amazon: مرتبط ✓`;
-      btn.textContent       = 'قطع';
-      btn.onclick           = () => {};
+      dot.style.background = '#68d391';
+      txt.textContent = `Amazon Egypt ✓`;
     } else {
-      dot.style.background  = '#fc8181';
-      txt.textContent       = 'Amazon: غير مرتبط';
-      btn.textContent       = 'ربط';
-      btn.onclick           = connectAmazon;
+      dot.style.background = '#fc8181';
+      txt.textContent = 'Amazon: غير مرتبط';
     }
   } catch(e) {}
-}
-
-async function connectAmazon() {
-  const res  = await fetch('/amazon/login');
-  const data = await res.json();
-  const win  = window.open(data.url, '_blank', 'width=600,height=700');
-  const timer = setInterval(() => {
-    if (win && win.closed) {
-      clearInterval(timer);
-      checkAmazonStatus();
-    }
-  }, 1000);
 }
 
 async function publishToAmazon() {
