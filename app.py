@@ -114,6 +114,44 @@ Rules:
     return jsonify(result)
 
 
+@app.route("/image-search", methods=["POST"])
+def image_search():
+    data = request.json
+    image_b64 = data.get("image_base64", "")
+    if not image_b64:
+        return jsonify({"error": "No image provided"}), 400
+
+    # Strip data URI prefix if present
+    if "," in image_b64:
+        image_b64 = image_b64.split(",", 1)[1]
+
+    imgbb_key = os.getenv("IMGBB_API_KEY")
+    if not imgbb_key:
+        return jsonify({"error": "IMGBB_API_KEY not configured"}), 500
+
+    resp = requests.post(
+        "https://api.imgbb.com/1/upload",
+        data={"key": imgbb_key, "image": image_b64},
+        timeout=30
+    )
+    resp.raise_for_status()
+    result = resp.json()
+    image_url = result["data"]["url"]
+
+    from urllib.parse import quote
+    enc = quote(image_url, safe="")
+
+    return jsonify({
+        "image_url": image_url,
+        "links": {
+            "google_lens":  f"https://lens.google.com/uploadbyurl?url={enc}",
+            "alibaba":      f"https://www.alibaba.com/trade/search?imageAddress={enc}&SearchText=",
+            "aliexpress":   f"https://www.aliexpress.com/wholesale?imgUrl={enc}",
+            "amazon":       f"https://www.amazon.com/s?k={enc}&i=aps",
+        }
+    })
+
+
 @app.route("/generate-image", methods=["POST"])
 def generate_image():
     data         = request.json

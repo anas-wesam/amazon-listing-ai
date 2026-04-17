@@ -163,6 +163,9 @@
       <button class="tab-btn active" id="tabGenerate" onclick="switchTab('generate')">
         <i class="fas fa-magic mr-1"></i> Generate
       </button>
+      <button class="tab-btn" id="tabImageSearch" onclick="switchTab('imageSearch')">
+        <i class="fas fa-search mr-1"></i> Image Search
+      </button>
       <button class="tab-btn" id="tabHistory" onclick="switchTab('history')">
         <i class="fas fa-history mr-1"></i> History
       </button>
@@ -377,6 +380,63 @@
   </div>
 </div>
 
+<!-- IMAGE SEARCH TAB -->
+<div id="imageSearchTab" class="max-w-3xl mx-auto px-6 py-8" style="display:none">
+  <div class="card p-6">
+    <h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+      <i class="fas fa-search" style="color:#FF9900"></i> Search by Image
+    </h2>
+    <p class="text-sm text-gray-400 mb-6">ارفع صورة المنتج وهنفتحلك النتائج على Amazon و Alibaba و AliExpress و Google Lens</p>
+
+    <!-- Drop Zone -->
+    <div id="dropZone"
+      class="image-container cursor-pointer mb-5"
+      style="min-height:220px; border-style:dashed;"
+      onclick="document.getElementById('imgUploadInput').click()"
+      ondragover="event.preventDefault(); this.style.borderColor='#FF9900'"
+      ondragleave="this.style.borderColor=''"
+      ondrop="handleDrop(event)">
+      <i class="fas fa-cloud-upload-alt text-5xl mb-3" style="color:#2d3748"></i>
+      <p class="text-gray-400 font-semibold">اسحب الصورة هنا أو اضغط للاختيار</p>
+      <p class="text-gray-600 text-sm mt-1">JPG, PNG, WEBP</p>
+    </div>
+    <input type="file" id="imgUploadInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
+
+    <button class="amazon-btn w-full py-3 text-base" id="searchImgBtn" onclick="doImageSearch()" disabled>
+      <i class="fas fa-search mr-2"></i> ابحث بالصورة
+    </button>
+
+    <!-- Results -->
+    <div id="searchResults" class="mt-6 space-y-3" style="display:none">
+      <p class="text-sm font-semibold text-gray-400 mb-2">افتح النتائج على:</p>
+      <a id="linkGoogleLens" href="#" target="_blank"
+        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
+        <img src="https://www.google.com/favicon.ico" class="w-5 h-5" />
+        <span class="font-semibold">Google Lens</span>
+        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
+      </a>
+      <a id="linkAlibaba" href="#" target="_blank"
+        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
+        <img src="https://www.alibaba.com/favicon.ico" class="w-5 h-5" />
+        <span class="font-semibold">Alibaba</span>
+        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
+      </a>
+      <a id="linkAliExpress" href="#" target="_blank"
+        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
+        <img src="https://www.aliexpress.com/favicon.ico" class="w-5 h-5" />
+        <span class="font-semibold">AliExpress</span>
+        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
+      </a>
+      <a id="linkAmazon" href="#" target="_blank"
+        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
+        <img src="https://www.amazon.com/favicon.ico" class="w-5 h-5" />
+        <span class="font-semibold">Amazon</span>
+        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
 <!-- HISTORY TAB -->
 <div id="historyTab" class="max-w-7xl mx-auto px-6 py-8" style="display:none">
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -438,10 +498,12 @@ let currentImage = null;
 let currentHistoryId = null;
 
 function switchTab(tab) {
-  document.getElementById('generateTab').style.display = tab === 'generate' ? '' : 'none';
-  document.getElementById('historyTab').style.display  = tab === 'history'  ? '' : 'none';
-  document.getElementById('tabGenerate').className = 'tab-btn' + (tab === 'generate' ? ' active' : '');
-  document.getElementById('tabHistory').className  = 'tab-btn' + (tab === 'history'  ? ' active' : '');
+  document.getElementById('generateTab').style.display    = tab === 'generate'    ? '' : 'none';
+  document.getElementById('historyTab').style.display     = tab === 'history'     ? '' : 'none';
+  document.getElementById('imageSearchTab').style.display = tab === 'imageSearch' ? '' : 'none';
+  document.getElementById('tabGenerate').className    = 'tab-btn' + (tab === 'generate'    ? ' active' : '');
+  document.getElementById('tabHistory').className     = 'tab-btn' + (tab === 'history'     ? ' active' : '');
+  document.getElementById('tabImageSearch').className = 'tab-btn' + (tab === 'imageSearch' ? ' active' : '');
   if (tab === 'history') loadHistory();
 }
 
@@ -768,6 +830,61 @@ function copyBullets(btn) {
       btn.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
     }, 2000);
   });
+}
+
+let uploadedImageB64 = null;
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) loadImageFile(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file) loadImageFile(file);
+}
+
+function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    uploadedImageB64 = ev.target.result;
+    const zone = document.getElementById('dropZone');
+    zone.innerHTML = `<img src="${uploadedImageB64}" style="width:100%;height:100%;object-fit:contain;border-radius:10px;" />`;
+    document.getElementById('searchImgBtn').disabled = false;
+    document.getElementById('searchResults').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function doImageSearch() {
+  if (!uploadedImageB64) return;
+  const btn = document.getElementById('searchImgBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner mr-2"></span> جاري الرفع...';
+
+  try {
+    const res = await fetch('/image-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: uploadedImageB64 })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('linkGoogleLens').href = data.links.google_lens;
+    document.getElementById('linkAlibaba').href    = data.links.alibaba;
+    document.getElementById('linkAliExpress').href = data.links.aliexpress;
+    document.getElementById('linkAmazon').href     = data.links.amazon;
+    document.getElementById('searchResults').style.display = '';
+    showToast('✅ جاهز! اختار الموقع اللي تدور فيه');
+  } catch (e) {
+    showToast('Error: ' + e.message, '#742a2a', '#fc8181');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search mr-2"></i> ابحث بالصورة';
+  }
 }
 
 function escHtml(str) {
