@@ -168,6 +168,23 @@ def image_search():
     return jsonify(results)
 
 
+@app.route("/proxy-image")
+def proxy_image():
+    url = request.args.get("url", "")
+    if not url:
+        return "No URL", 400
+    try:
+        r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        ext = url.split("?")[0].split(".")[-1].lower()
+        mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                "webp": "image/webp", "gif": "image/gif"}.get(ext, "image/jpeg")
+        from flask import Response
+        return Response(r.content, content_type=mime,
+                        headers={"Content-Disposition": f"attachment; filename=product.{ext}"})
+    except Exception as e:
+        return str(e), 500
+
+
 @app.route("/generate-image", methods=["POST"])
 def generate_image():
     data         = request.json
