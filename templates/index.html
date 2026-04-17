@@ -407,32 +407,10 @@
     </button>
 
     <!-- Results -->
-    <div id="searchResults" class="mt-6 space-y-3" style="display:none">
-      <p class="text-sm font-semibold text-gray-400 mb-2">افتح النتائج على:</p>
-      <a id="linkGoogleLens" href="#" target="_blank"
-        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
-        <img src="https://www.google.com/favicon.ico" class="w-5 h-5" />
-        <span class="font-semibold">Google Lens</span>
-        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
-      </a>
-      <a id="linkAlibaba" href="#" target="_blank"
-        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
-        <img src="https://www.alibaba.com/favicon.ico" class="w-5 h-5" />
-        <span class="font-semibold">Alibaba</span>
-        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
-      </a>
-      <a id="linkAliExpress" href="#" target="_blank"
-        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
-        <img src="https://www.aliexpress.com/favicon.ico" class="w-5 h-5" />
-        <span class="font-semibold">AliExpress</span>
-        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
-      </a>
-      <a id="linkAmazon" href="#" target="_blank"
-        class="flex items-center gap-3 p-4 rounded-xl secondary-btn w-full text-left">
-        <img src="https://www.amazon.com/favicon.ico" class="w-5 h-5" />
-        <span class="font-semibold">Amazon</span>
-        <i class="fas fa-external-link-alt ml-auto text-gray-500"></i>
-      </a>
+    <div id="searchResults" class="mt-6" style="display:none">
+      <p class="text-xs text-gray-500 mb-4">🤖 الذكاء الاصطناعي حدد المنتج: <span id="productQueryLabel" class="text-orange-400 font-semibold"></span></p>
+
+      <div id="resultsGrid" class="space-y-6"></div>
     </div>
   </div>
 </div>
@@ -862,7 +840,7 @@ async function doImageSearch() {
   if (!uploadedImageB64) return;
   const btn = document.getElementById('searchImgBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner mr-2"></span> جاري الرفع...';
+  btn.innerHTML = '<span class="spinner mr-2"></span> الذكاء الاصطناعي بيحدد المنتج...';
 
   try {
     const res = await fetch('/image-search', {
@@ -873,12 +851,41 @@ async function doImageSearch() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    document.getElementById('linkGoogleLens').href = data.links.google_lens;
-    document.getElementById('linkAlibaba').href    = data.links.alibaba;
-    document.getElementById('linkAliExpress').href = data.links.aliexpress;
-    document.getElementById('linkAmazon').href     = data.links.amazon;
+    document.getElementById('productQueryLabel').textContent = data.product_query;
+
+    const platforms = [
+      { key: 'amazon',     label: 'Amazon',     icon: '🛒', color: '#FF9900' },
+      { key: 'alibaba',    label: 'Alibaba',     icon: '🏭', color: '#FF6A00' },
+      { key: 'aliexpress', label: 'AliExpress',  icon: '✈️', color: '#E43225' },
+      { key: 'google',     label: 'Google',      icon: '🔍', color: '#4285F4' },
+    ];
+
+    const grid = document.getElementById('resultsGrid');
+    grid.innerHTML = platforms.map(p => {
+      const items = data[p.key] || [];
+      if (!items.length) return '';
+      const cards = items.map(item => `
+        <a href="${item.url}" target="_blank" class="block rounded-lg overflow-hidden border border-gray-700 hover:border-orange-400 transition-all bg-gray-900">
+          <img src="${item.image}" alt="${escHtml(item.title)}" class="w-full object-cover" style="height:140px;"
+               onerror="this.parentElement.style.display='none'" />
+          <p class="text-xs text-gray-400 p-2 truncate">${escHtml(item.title)}</p>
+        </a>
+      `).join('');
+
+      return `
+        <div>
+          <h3 class="font-bold mb-3 flex items-center gap-2">
+            <span>${p.icon}</span>
+            <span style="color:${p.color}">${p.label}</span>
+            <span class="text-gray-500 text-xs font-normal">(${items.length} نتيجة)</span>
+          </h3>
+          <div class="grid grid-cols-3 gap-2">${cards}</div>
+        </div>
+      `;
+    }).join('');
+
     document.getElementById('searchResults').style.display = '';
-    showToast('✅ جاهز! اختار الموقع اللي تدور فيه');
+    showToast('✅ تم! اضغط على أي صورة لفتح المنتج');
   } catch (e) {
     showToast('Error: ' + e.message, '#742a2a', '#fc8181');
   } finally {

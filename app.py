@@ -114,6 +114,24 @@ Rules:
     return jsonify(result)
 
 
+def ddg_image_search(query, max_results=6):
+    """Search DuckDuckGo images and return list of image result dicts."""
+    import re
+    headers = {"User-Agent": "Mozilla/5.0"}
+    # Step 1: get vqd token
+    r = requests.get("https://duckduckgo.com/", params={"q": query, "iax": "images", "ia": "images"}, headers=headers, timeout=10)
+    vqd = re.search(r'vqd=(["\'])([^"\']+)\1', r.text)
+    if not vqd:
+        return []
+    vqd_token = vqd.group(2)
+    # Step 2: fetch image results
+    r2 = requests.get("https://duckduckgo.com/i.js",
+                       params={"q": query, "o": "json", "vqd": vqd_token, "f": ",,,,,", "p": "1"},
+                       headers=headers, timeout=10)
+    results = r2.json().get("results", [])
+    return [{"image": x["image"], "title": x.get("title",""), "url": x.get("url","")} for x in results[:max_results]]
+
+
 @app.route("/image-search", methods=["POST"])
 def image_search():
     data = request.json
@@ -121,35 +139,33 @@ def image_search():
     if not image_b64:
         return jsonify({"error": "No image provided"}), 400
 
-    # Strip data URI prefix if present
-    if "," in image_b64:
-        image_b64 = image_b64.split(",", 1)[1]
+    # Strip data URI prefix
+    raw_b64 = image_b64.split(",", 1)[1] if "," in image_b64 else image_b64
 
-    imgbb_key = os.getenv("IMGBB_API_KEY")
-    if not imgbb_key:
-        return jsonify({"error": "IMGBB_API_KEY not configured"}), 500
-
-    resp = requests.post(
-        "https://api.imgbb.com/1/upload",
-        data={"key": imgbb_key, "image": image_b64},
-        timeout=30
+    # Step 1: identify product using Groq vision
+    vision_response = client.chat.completions.create(
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image_url", "image_url": {"url": image_b64}},
+                {"type": "text", "text": "What product is in this image? Reply with ONLY a short product search query (3-6 words max), no explanation."}
+            ]
+        }],
+        max_tokens=30
     )
-    resp.raise_for_status()
-    result = resp.json()
-    image_url = result["data"]["url"]
+    product_query = vision_response.choices[0].message.content.strip().strip('"').strip("'")
 
+    # Step 2: search each platform
     from urllib.parse import quote
-    enc = quote(image_url, safe="")
-
-    return jsonify({
-        "image_url": image_url,
-        "links": {
-            "google_lens":  f"https://lens.google.com/uploadbyurl?url={enc}",
-            "alibaba":      f"https://www.alibaba.com/trade/search?imageAddress={enc}&SearchText=",
-            "aliexpress":   f"https://www.aliexpress.com/wholesale?imgUrl={enc}",
-            "amazon":       f"https://www.amazon.com/s?k={enc}&i=aps",
-        }
-    })
+    results = {
+        "product_query": product_query,
+        "amazon":     ddg_image_search(f"{product_query} site:amazon.com"),
+        "alibaba":    ddg_image_search(f"{product_query} site:alibaba.com"),
+        "aliexpress": ddg_image_search(f"{product_query} site:aliexpress.com"),
+        "google":     ddg_image_search(f"{product_query} product"),
+    }
+    return jsonify(results)
 
 
 @app.route("/generate-image", methods=["POST"])
