@@ -169,6 +169,9 @@
       <button class="tab-btn active" id="tabGenerate" onclick="switchTab('generate')">
         <i class="fas fa-magic mr-1"></i> Generate
       </button>
+      <button class="tab-btn" id="tabStudio" onclick="switchTab('studio')">
+        <i class="fas fa-magic mr-1"></i> Photo Studio
+      </button>
       <button class="tab-btn" id="tabImageSearch" onclick="switchTab('imageSearch')">
         <i class="fas fa-search mr-1"></i> Image Search
       </button>
@@ -391,6 +394,121 @@
   </div>
 </div>
 
+<!-- PHOTO STUDIO TAB -->
+<div id="studioTab" class="max-w-6xl mx-auto px-6 py-8" style="display:none">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- LEFT: Upload + Tools -->
+    <div class="space-y-4">
+      <div class="card p-5">
+        <h2 class="text-lg font-bold mb-1 flex items-center gap-2">
+          <i class="fas fa-camera" style="color:#FF9900"></i> Photo Studio
+        </h2>
+        <p class="text-xs text-gray-500 mb-4">ارفع صورة المنتج وعدل عليها احترافياً</p>
+
+        <!-- Upload zone -->
+        <div id="studioDropZone"
+          class="image-container cursor-pointer mb-4"
+          style="min-height:200px;border-style:dashed;"
+          onclick="document.getElementById('studioInput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='#FF9900'"
+          ondragleave="this.style.borderColor=''"
+          ondrop="studioHandleDrop(event)">
+          <i class="fas fa-cloud-upload-alt text-4xl mb-2" style="color:#2d3748"></i>
+          <p class="text-gray-400 font-semibold text-sm">اسحب الصورة أو اضغط للاختيار</p>
+        </div>
+        <input type="file" id="studioInput" accept="image/*" class="hidden" onchange="studioLoadFile(event)" />
+      </div>
+
+      <!-- Tools -->
+      <div class="card p-5 space-y-4" id="studioTools" style="display:none">
+        <h3 class="font-bold text-sm mb-2"><i class="fas fa-sliders-h mr-2" style="color:#FF9900"></i>أدوات التعديل</h3>
+
+        <!-- Remove BG -->
+        <button class="w-full py-2 rounded-lg text-sm font-bold text-white transition-all"
+          style="background:linear-gradient(135deg,#667eea,#764ba2)"
+          onclick="studioRemoveBg()">
+          <i class="fas fa-eraser mr-2"></i> إزالة الخلفية (خلفية بيضاء)
+        </button>
+
+        <!-- Brightness -->
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">الإضاءة: <span id="brightnessVal">100%</span></label>
+          <input type="range" min="50" max="200" value="100" class="w-full accent-orange-400"
+            id="brightnessSlider" oninput="applyFilters()">
+        </div>
+
+        <!-- Contrast -->
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">التباين: <span id="contrastVal">100%</span></label>
+          <input type="range" min="50" max="200" value="100" class="w-full accent-orange-400"
+            id="contrastSlider" oninput="applyFilters()">
+        </div>
+
+        <!-- Saturation -->
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">الألوان: <span id="saturationVal">100%</span></label>
+          <input type="range" min="0" max="200" value="100" class="w-full accent-orange-400"
+            id="saturationSlider" oninput="applyFilters()">
+        </div>
+
+        <!-- Watermark -->
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">Watermark نص</label>
+          <div class="flex gap-2">
+            <input type="text" id="watermarkText" class="input-field text-sm" placeholder="اسم المتجر أو الموقع..." />
+            <button class="secondary-btn px-3 py-2 text-sm rounded-lg" onclick="applyWatermark()">
+              <i class="fas fa-stamp"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- BG Color -->
+        <div>
+          <label class="text-xs text-gray-400 mb-1 block">لون الخلفية</label>
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="addBgColor('#ffffff')" class="w-8 h-8 rounded-lg border-2 border-gray-600" style="background:#ffffff" title="أبيض"></button>
+            <button onclick="addBgColor('#000000')" class="w-8 h-8 rounded-lg border-2 border-gray-600" style="background:#000000" title="أسود"></button>
+            <button onclick="addBgColor('#f0f0f0')" class="w-8 h-8 rounded-lg border-2 border-gray-600" style="background:#f0f0f0" title="رمادي فاتح"></button>
+            <button onclick="addBgColor('#1a1f2e')" class="w-8 h-8 rounded-lg border-2 border-gray-600" style="background:#1a1f2e" title="داكن"></button>
+            <input type="color" id="bgColorPicker" value="#FF9900"
+              class="w-8 h-8 rounded-lg border-2 border-gray-600 cursor-pointer p-0"
+              onchange="addBgColor(this.value)" title="لون مخصص">
+          </div>
+        </div>
+
+        <!-- Reset -->
+        <button class="w-full py-2 rounded-lg text-sm font-semibold secondary-btn" onclick="studioReset()">
+          <i class="fas fa-undo mr-2"></i> إعادة تعيين
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Preview + Download -->
+    <div class="space-y-4">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm"><i class="fas fa-eye mr-2" style="color:#FF9900"></i>معاينة</h3>
+          <div class="flex gap-2" id="studioActions" style="display:none">
+            <button onclick="studioDownload('png')" class="amazon-btn px-3 py-1 text-xs">
+              <i class="fas fa-download mr-1"></i> PNG
+            </button>
+            <button onclick="studioDownload('jpeg')" class="secondary-btn px-3 py-1 text-xs rounded-lg">
+              <i class="fas fa-download mr-1"></i> JPG
+            </button>
+          </div>
+        </div>
+        <div id="studioPreviewWrap" class="image-container" style="min-height:300px">
+          <i class="fas fa-image text-5xl mb-3" style="color:#2d3748"></i>
+          <p class="text-gray-500 text-sm">الصورة المعدلة ستظهر هنا</p>
+        </div>
+        <canvas id="studioCanvas" style="display:none"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- IMAGE SEARCH TAB -->
 <div id="imageSearchTab" class="max-w-5xl mx-auto px-6 py-8" style="display:none">
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -515,12 +633,11 @@ let currentImage = null;
 let currentHistoryId = null;
 
 function switchTab(tab) {
-  document.getElementById('generateTab').style.display    = tab === 'generate'    ? '' : 'none';
-  document.getElementById('historyTab').style.display     = tab === 'history'     ? '' : 'none';
-  document.getElementById('imageSearchTab').style.display = tab === 'imageSearch' ? '' : 'none';
-  document.getElementById('tabGenerate').className    = 'tab-btn' + (tab === 'generate'    ? ' active' : '');
-  document.getElementById('tabHistory').className     = 'tab-btn' + (tab === 'history'     ? ' active' : '');
-  document.getElementById('tabImageSearch').className = 'tab-btn' + (tab === 'imageSearch' ? ' active' : '');
+  ['generate','history','imageSearch','studio'].forEach(t => {
+    document.getElementById(t === 'generate' ? 'generateTab' : t === 'history' ? 'historyTab' : t === 'imageSearch' ? 'imageSearchTab' : 'studioTab').style.display = tab === t ? '' : 'none';
+    const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (btn) btn.className = 'tab-btn' + (tab === t ? ' active' : '');
+  });
   if (tab === 'history') loadHistory();
 }
 
@@ -1016,6 +1133,156 @@ async function downloadSelected() {
     await new Promise(r => setTimeout(r, 600));
   }
   showToast(`✅ تم تحميل ${selectedImages.length} صور!`);
+}
+
+// ─── Photo Studio ─────────────────────────────────────────────────────────────
+let studioOriginalB64 = null;
+let studioCurrent     = null; // current image as base64
+
+function studioHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('studioDropZone').style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (file) studioLoadImage(file);
+}
+
+function studioLoadFile(e) {
+  const file = e.target.files[0];
+  if (file) studioLoadImage(file);
+}
+
+function studioLoadImage(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    studioOriginalB64 = ev.target.result;
+    studioCurrent     = ev.target.result;
+    document.getElementById('studioDropZone').innerHTML =
+      `<img src="${studioOriginalB64}" style="width:100%;height:100%;object-fit:contain;border-radius:10px" />`;
+    document.getElementById('studioTools').style.display   = '';
+    document.getElementById('studioActions').style.display = '';
+    renderStudioPreview(studioCurrent);
+    // reset sliders
+    ['brightness','contrast','saturation'].forEach(s => {
+      document.getElementById(s+'Slider').value = 100;
+      document.getElementById(s+'Val').textContent = '100%';
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderStudioPreview(src) {
+  studioCurrent = src;
+  document.getElementById('studioPreviewWrap').innerHTML =
+    `<img src="${src}" style="width:100%;height:100%;object-fit:contain;border-radius:10px;max-height:400px" />`;
+}
+
+function applyFilters() {
+  const b = document.getElementById('brightnessSlider').value;
+  const c = document.getElementById('contrastSlider').value;
+  const s = document.getElementById('saturationSlider').value;
+  document.getElementById('brightnessVal').textContent = b + '%';
+  document.getElementById('contrastVal').textContent   = c + '%';
+  document.getElementById('saturationVal').textContent = s + '%';
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas  = document.getElementById('studioCanvas');
+    canvas.width  = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+    ctx.drawImage(img, 0, 0);
+    renderStudioPreview(canvas.toDataURL('image/png'));
+  };
+  img.src = studioCurrent || studioOriginalB64;
+}
+
+function addBgColor(color) {
+  if (!studioOriginalB64) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas  = document.getElementById('studioCanvas');
+    canvas.width  = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    renderStudioPreview(canvas.toDataURL('image/png'));
+  };
+  img.src = studioCurrent || studioOriginalB64;
+}
+
+function applyWatermark() {
+  const text = document.getElementById('watermarkText').value.trim();
+  if (!text || !studioCurrent) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas  = document.getElementById('studioCanvas');
+    canvas.width  = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const fontSize = Math.max(20, Math.floor(img.width / 20));
+    ctx.font      = `bold ${fontSize}px Arial`;
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur  = 6;
+    ctx.fillText(text, canvas.width / 2, canvas.height - fontSize);
+    renderStudioPreview(canvas.toDataURL('image/png'));
+  };
+  img.src = studioCurrent;
+}
+
+async function studioRemoveBg() {
+  if (!studioOriginalB64) return;
+  showToast('⏳ جاري إزالة الخلفية...');
+  try {
+    const res = await fetch('/studio/remove-bg', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_base64: studioOriginalB64 })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    studioOriginalB64 = data.image_base64;
+    studioCurrent     = data.image_base64;
+    renderStudioPreview(studioCurrent);
+    showToast('✅ تمت إزالة الخلفية!');
+  } catch(e) {
+    showToast('خطأ: ' + e.message, '#742a2a', '#fc8181');
+  }
+}
+
+function studioReset() {
+  if (!studioOriginalB64) return;
+  studioCurrent = studioOriginalB64;
+  renderStudioPreview(studioCurrent);
+  ['brightness','contrast','saturation'].forEach(s => {
+    document.getElementById(s+'Slider').value = 100;
+    document.getElementById(s+'Val').textContent = '100%';
+  });
+}
+
+function studioDownload(fmt) {
+  if (!studioCurrent) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas  = document.getElementById('studioCanvas');
+    canvas.width  = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (fmt === 'jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height); }
+    ctx.drawImage(img, 0, 0);
+    const mime = fmt === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const a = document.createElement('a');
+    a.href     = canvas.toDataURL(mime, 0.95);
+    a.download = `product_studio_${Date.now()}.${fmt}`;
+    a.click();
+    showToast(`✅ تم التحميل!`);
+  };
+  img.src = studioCurrent;
 }
 
 // ─── Amazon SP-API ────────────────────────────────────────────────────────────
