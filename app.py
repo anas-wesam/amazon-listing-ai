@@ -5,6 +5,8 @@ import os
 import json
 from dotenv import load_dotenv
 import io
+import base64
+import requests
 from datetime import datetime
 import sqlite3
 
@@ -114,7 +116,29 @@ Rules:
 
 @app.route("/generate-image", methods=["POST"])
 def generate_image():
-    return jsonify({"error": "Image generation is not supported with the Claude API."}), 501
+    data         = request.json
+    product_name = data.get("product_name", "")
+    category     = data.get("category", "")
+    features     = data.get("features", "")
+
+    image_prompt = (
+        f"Professional Amazon product photography of {product_name}, "
+        f"category: {category}, key features: {features}. "
+        "Pure white background, studio lighting, sharp focus, "
+        "high resolution commercial product photo, centered composition, "
+        "no text or watermarks, e-commerce ready image."
+    )
+
+    encoded_prompt = requests.utils.quote(image_prompt)
+    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
+
+    img_response = requests.get(image_url, timeout=60)
+    img_base64 = base64.b64encode(img_response.content).decode("utf-8")
+
+    return jsonify({
+        "image_url": image_url,
+        "image_base64": f"data:image/jpeg;base64,{img_base64}"
+    })
 
 
 @app.route("/save", methods=["POST"])
