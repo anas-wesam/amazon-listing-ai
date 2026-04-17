@@ -18,8 +18,10 @@ CORS(app)
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # ─── Database Setup ────────────────────────────────────────────────────────────
+DB_PATH = "/tmp/listings.db"
+
 def init_db():
-    conn = sqlite3.connect("listings.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
         CREATE TABLE IF NOT EXISTS listings (
@@ -153,7 +155,7 @@ def save_listing():
     image_b64    = data.get("image_base64", "")
     timestamp    = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    conn = sqlite3.connect("listings.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
         INSERT INTO listings
@@ -179,7 +181,7 @@ def save_listing():
 
 @app.route("/history", methods=["GET"])
 def get_history():
-    conn = sqlite3.connect("listings.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT id, product_name, category, title, language, created_at FROM listings ORDER BY id DESC LIMIT 50")
     rows = c.fetchall()
@@ -192,7 +194,7 @@ def get_history():
 
 @app.route("/history/<int:listing_id>", methods=["GET"])
 def get_listing(listing_id):
-    conn = sqlite3.connect("listings.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM listings WHERE id = ?", (listing_id,))
     row = c.fetchone()
@@ -210,7 +212,7 @@ def get_listing(listing_id):
 
 @app.route("/history/<int:listing_id>", methods=["DELETE"])
 def delete_listing(listing_id):
-    conn = sqlite3.connect("listings.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("DELETE FROM listings WHERE id = ?", (listing_id,))
     conn.commit()
