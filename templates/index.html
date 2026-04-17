@@ -159,7 +159,13 @@
         <div class="text-xs" style="color:#FF9900;">Powered by GPT-4o + DALL·E 3</div>
       </div>
     </div>
-    <div class="flex gap-2">
+    <div class="flex gap-2 items-center">
+      <!-- Amazon Connect Status -->
+      <div id="amazonStatus" class="flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-semibold" style="background:#1a1f2e; border:1px solid #2d3748">
+        <span id="amazonDot" class="w-2 h-2 rounded-full bg-gray-600 inline-block"></span>
+        <span id="amazonStatusText">Amazon: غير مرتبط</span>
+        <button id="amazonConnectBtn" onclick="connectAmazon()" class="ml-1 px-2 py-0.5 rounded text-xs" style="background:#FF9900;color:#131921;font-weight:700">ربط</button>
+      </div>
       <button class="tab-btn active" id="tabGenerate" onclick="switchTab('generate')">
         <i class="fas fa-magic mr-1"></i> Generate
       </button>
@@ -372,6 +378,11 @@
           </button>
           <button class="amazon-btn py-2 text-sm" onclick="saveListing()">
             <i class="fas fa-save mr-1"></i> Save
+          </button>
+          <button class="py-2 text-sm rounded-lg font-bold w-full col-span-2" id="publishBtn"
+            onclick="publishToAmazon()"
+            style="background:linear-gradient(135deg,#146EB4,#0e4f82);color:#fff">
+            <i class="fab fa-amazon mr-1"></i> نشر على Amazon
           </button>
         </div>
       </div>
@@ -1006,6 +1017,70 @@ async function downloadSelected() {
   }
   showToast(`✅ تم تحميل ${selectedImages.length} صور!`);
 }
+
+// ─── Amazon SP-API ────────────────────────────────────────────────────────────
+async function checkAmazonStatus() {
+  try {
+    const res = await fetch('/amazon/status');
+    const data = await res.json();
+    const dot  = document.getElementById('amazonDot');
+    const txt  = document.getElementById('amazonStatusText');
+    const btn  = document.getElementById('amazonConnectBtn');
+    if (data.connected) {
+      dot.style.background  = '#68d391';
+      txt.textContent       = `Amazon: مرتبط ✓`;
+      btn.textContent       = 'قطع';
+      btn.onclick           = () => {};
+    } else {
+      dot.style.background  = '#fc8181';
+      txt.textContent       = 'Amazon: غير مرتبط';
+      btn.textContent       = 'ربط';
+      btn.onclick           = connectAmazon;
+    }
+  } catch(e) {}
+}
+
+async function connectAmazon() {
+  const res  = await fetch('/amazon/login');
+  const data = await res.json();
+  const win  = window.open(data.url, '_blank', 'width=600,height=700');
+  const timer = setInterval(() => {
+    if (win && win.closed) {
+      clearInterval(timer);
+      checkAmazonStatus();
+    }
+  }, 1000);
+}
+
+async function publishToAmazon() {
+  if (!currentData) { showToast('اعمل generate للـ listing الأول!', '#742a2a', '#fc8181'); return; }
+  const fd  = getFormData();
+  const btn = document.getElementById('publishBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner mr-2"></span> جاري النشر...';
+  try {
+    const res = await fetch('/amazon/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: currentData, product_name: fd.product_name })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showToast(`✅ تم النشر! SKU: ${data.sku}`);
+  } catch(e) {
+    if (e.message.includes('Not connected')) {
+      showToast('ربط Amazon الأول من الهيدر!', '#742a2a', '#fc8181');
+    } else {
+      showToast('خطأ: ' + e.message, '#742a2a', '#fc8181');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fab fa-amazon mr-1"></i> نشر على Amazon';
+  }
+}
+
+// Check Amazon status on load
+checkAmazonStatus();
 
 function escHtml(str) {
   return String(str)
